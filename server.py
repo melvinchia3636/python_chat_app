@@ -12,10 +12,8 @@ password = input("Password: ")
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-try:
-    s.bind((server, int(port)))
-except :
-    raise
+try: s.bind((server, int(port)))
+except : raise
 
 s.listen()
 print(f"Waiting for connection, server started at {server}:{port}")
@@ -39,45 +37,50 @@ def threaded_client(conn, addr):
     while True:
         try:
             data = conn.recv(8192).decode()
-            try: 
-                data = eval(data)
-                if data[-1] != password:
-                    conn.sendall(str.encode(str(data), 'utf-8'))
-                    break
-                data = data[0]
+            try: data = eval(data)
+            except: continue
+            if data[-1] != password:
+                conn.sendall(str.encode(str(data), 'utf-8'))
+                break
+            data = data[0]
 
-                if data["type"] == "chat_join":
-                    data = data['content']
-                    new_user = data['user']
-                    new_user_id = get_id()
-                    data = ["[{}] <CONSOLE>".format(data['time']), "{}#{} JOINED THE CHAT".format(new_user, new_user_id)]
-                    user.append((new_user, new_user_id))
-                    
-                    write_data(data)
-                    conn.sendall(str.encode(new_user_id, 'utf-8'))
+            if data["type"] == "chat_join":
+                data = data['content']
+                new_user = data['user']
+                new_user_id = get_id()
+                data = ["[{}] <CONSOLE>".format(data['time']), "{}#{} JOINED THE CHAT".format(new_user, new_user_id)]
+                user.append((new_user, new_user_id))
                 
-                elif data["type"] == "fetch_histories":
-                    data = json.load(open('message.json', 'r'))
-                    data = data[-60:-1]
-                    conn.sendall(str.encode(json.dumps(data), 'utf-8'))
-                
-                elif data["type"] == "chat_send":
-                    data = data['content']
-                    data = ["[{}] <{}#{}>".format(data['time'], data['user'], data['user_id']), data['content']]
-                    write_data(data)
-                    if (match := re.findall(r'#(\d+)', data[1])):
-                        for i in match:
-                            print(i)
-                    conn.sendall(str.encode(str(data), 'utf-8'))
-                
-                elif data["type"] == "chat_fetch":
-                    data = json.load(open('message.json', 'r'))
-                    data = data[-1]
-                    if data: conn.sendall(str.encode(json.dumps(data), 'utf-8'))
-                    else: conn.sendall(str.encode(str([]), 'utf-8'))
-            except:
-                raise
+                write_data(data)
+                conn.sendall(str.encode(new_user_id, 'utf-8'))
+            
+            elif data["type"] == "fetch_histories":
+                data = json.load(open('message.json', 'r'))
+                data = data[-60:-1]
+                conn.sendall(str.encode(json.dumps({
+                    "type": "histories",
+                    "content": data
+                }), 'utf-8'))
+            
+            elif data["type"] == "chat_send":
+                data = data['content']
+                data = ["[{}] <{}#{}>".format(data['time'], data['user'], data['user_id']), data['content']]
+                write_data(data)
+                if (match := re.findall(r'#(\d+)', data[1])):
+                    for i in match:
+                        print(i)
+                conn.sendall(str.encode(str(data), 'utf-8'))
+            
+            elif data["type"] == "chat_fetch":
+                data = json.load(open('message.json', 'r'))
+                data = data[-1]
+                if data: conn.sendall(str.encode(json.dumps({
+                    "type": "chat_fetch",
+                    "content": data
+                }), 'utf-8'))
+                else: conn.sendall(str.encode(str([]), 'utf-8'))
         except:
+            raise
             if new_user != "anonymous":
                 data = [time.strftime("[%H:%M:%S] <CONSOLE>", time.localtime()), f'{new_user}#{new_user_id} LEFT THE CHAT']
                 user.remove((new_user, new_user_id))
@@ -85,12 +88,12 @@ def threaded_client(conn, addr):
                 conn.sendall(str.encode(str(data), 'utf-8'))
             break
         
-    print('Lost connection')
+    print('{}<{}#{}> disconnected'.format(new_user.title(), *addr))
     conn.close()
 
 
 currentPlayer = 0
 while True:
     conn, addr = s.accept()
-    print('Connected to ', addr)
+    print('Connected to {}#{}'.format(*addr))
     start_new_thread(threaded_client, (conn, addr))

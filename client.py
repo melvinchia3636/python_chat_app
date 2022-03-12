@@ -2,6 +2,7 @@ import sys
 from network import Network
 from tkinter import *
 from tkinter.font import Font
+from tkinter import messagebox
 from ttkbootstrap import Style
 import tkinter.ttk as ttk
 import time
@@ -65,27 +66,35 @@ class MainWindow:
         self.bind_events()
         self.tags_configure()
         self.load_chat_record()
-        self.run()
+        self.root.after(0, self.run)
 
     def get_chat_record(self):
         prev_record = network.send({
             "type": "fetch_histories"
         })
-        if prev_record.strip():
+        if prev_record and prev_record.strip():
             try: self.prev_record = json.loads(prev_record)
-            except: self.get_chat_record()
-        else: self.get_chat_record()
+            except: 
+                time.sleep(1)
+                self.get_chat_record()
+        else: 
+            try: 
+                time.sleep(1)
+                self.get_chat_record()
+            except: 
+                sys.exit(0)
 
     def load_chat_record(self):
-        for hmm in self.prev_record:
-            try:
-                self.message.insert(END, hmm[0])
-                self.message.insert(END, ' : '+hmm[1])
-                self.message.insert(END, '\n')
-            except:
-                pass
+        if self.prev_record['type'] == 'histories':
+            for hmm in self.prev_record['content']:
+                try:
+                    self.message.insert(END, hmm[0])
+                    self.message.insert(END, ' : '+hmm[1])
+                    self.message.insert(END, '\n')
+                except:
+                    pass
 
-        self.message.see(END)
+            self.message.see(END)
     
     def setup_widget(self):
         self.container = ttk.Frame(self.root)
@@ -261,16 +270,18 @@ class MainWindow:
 
             if message != json.loads(temp):
                 message = json.loads(temp)
-                self.message.config(state=NORMAL)
-                self.message.insert(END, message[0])
-                self.message.insert(END, ' : '+message[1])
-                self.message.insert(END, '\n')
-                self.message.highlight_pattern(r".+CONSOLE.+LEFT.+", "userleft", regexp=True)
-                self.message.highlight_pattern(r".+CONSOLE.+JOINED.+", "userjoined", regexp=True)
-                self.message.highlight_pattern(r"#\d+", "usertag", regexp=True)
-                self.message.highlight_pattern(r"\[.*?\] <.*?> :", "meta", regexp=True)
-                self.message.config(state=DISABLED)
-                self.message.see(END)
+                if message['type'] == "chat_fetch":
+                    self.message.config(state=NORMAL)
+                    self.message.insert(END, message['content'][0])
+                    self.message.insert(END, ' : '+message['content'][1])
+                    self.message.insert(END, '\n')
+                    self.message.highlight_pattern(r".+CONSOLE.+LEFT.+", "userleft", regexp=True)
+                    self.message.highlight_pattern(r".+CONSOLE.+JOINED.+", "userjoined", regexp=True)
+                    self.message.highlight_pattern(r"#\d+", "usertag", regexp=True)
+                    self.message.highlight_pattern(r"\[.*?\] <.*?> :", "meta", regexp=True)
+                    self.message.config(state=DISABLED)
+                    self.message.see(END)
+                    self.root.lift()
 
             try:
                 self.root.update_idletasks()

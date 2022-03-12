@@ -29,7 +29,7 @@ container = Frame(win)
 my_ip_label = Label(container, text="IP Address:", justify="left")
 port_label = Label(container, text="Port Number:", justify="left")
 password_label = Label(container, text="Password:", justify="left")
-my_ip_entry = ttk.Combobox(container, values=[i.strip() for i in open('recent.dat', 'r').readlines()])
+my_ip_entry = ttk.Combobox(container, values=[i.strip() for i in open('recent.dat', 'r').readlines()][::-1])
 port_entry = ttk.Entry(container)
 password_entry = ttk.Entry(container)
 connect_btn = ttk.Button(container, text="CONNECT", command=connect)
@@ -60,7 +60,7 @@ class Network:
             self.client.connect(self.addr)
             return self.client.recv(8192).decode('utf-8')
         except:
-            print('lol')
+            sys.exit(0)
 
     def send(self, data):
         try:
